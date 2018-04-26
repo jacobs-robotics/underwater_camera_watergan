@@ -180,9 +180,6 @@ class WGAN(object):
 
   def train(self, config):
     """Train WGAN"""
-    water_data = glob(os.path.join("./data", config.water_dataset, self.input_fname_pattern))
-    air_data = glob(os.path.join("./data", config.air_dataset, self.input_fname_pattern))
-    depth_data = glob(os.path.join("./data", config.depth_dataset, "*.mat"))
 
     d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
               .minimize(self.d_loss, var_list=self.d_vars)
@@ -379,10 +376,6 @@ class WGAN(object):
           print("saving checkpoint")
 
   def test(self, config):
-    """Train WGAN"""
-    water_data = glob(os.path.join("./data", config.water_dataset, self.input_fname_pattern))
-    air_data = glob(os.path.join("./data", config.air_dataset, self.input_fname_pattern))
-    depth_data = glob(os.path.join("./data", config.depth_dataset, "*.mat"))
 
     d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
               .minimize(self.d_loss, var_list=self.d_vars)
@@ -424,12 +417,9 @@ class WGAN(object):
 
     for epoch in xrange(config.epoch):
       checkprint=0
-      water_data = sorted(glob(os.path.join(
-        "./data", config.water_dataset, self.input_fname_pattern)))
-      air_data = sorted(glob(os.path.join(
-        "./data", config.air_dataset, self.input_fname_pattern)))
-      depth_data = sorted(glob(os.path.join(
-        "./data", config.depth_dataset, "*.mat")))
+      water_data = sorted(glob(os.path.join(config.water_dataset, self.input_fname_pattern)))
+      air_data = sorted(glob(os.path.join(config.air_dataset, self.input_fname_pattern)))
+      depth_data = sorted(glob(os.path.join(config.depth_dataset, self.input_fname_pattern)))
 
       water_batch_idxs = min(min(len(air_data),len(water_data)), config.train_size) // config.batch_size
       air_batch_idxs = water_batch_idxs
@@ -478,8 +468,8 @@ class WGAN(object):
                 sample_fake_images = sample_ims[:,0:self.sh,0:self.sw,0:3]
                 sample_fake_images_small = np.empty([0,self.sh,self.sw,3])
                 for img_idx in range(0,self.batch_size):
-                    out_file = "/fake_%0d_%02d_%02d.png" % (epoch, img_idx,idx)
-                    out_name = self.results_dir + out_file
+                    out_file = "fake_%0d_%02d_%02d.png" % (epoch, img_idx,idx)
+                    out_name = os.path.join(config.water_dataset, self.results_dir, out_file)
                     print(out_name)
                     sample_im = sample_ims[img_idx,0:self.sh,0:self.sw,0:3]
                     sample_im = np.squeeze(sample_im)
@@ -489,8 +479,8 @@ class WGAN(object):
                       print(out_name)
                       print("ERROR!")
                       pass
-                    out_file2 = "/air_%0d_%02d_%02d.png" % (epoch, img_idx,idx)
-                    out_name2 = self.results_dir + out_file2
+                    out_file2 = "air_%0d_%02d_%02d.png" % (epoch, img_idx,idx)
+                    out_name2 = os.path.join(config.water_dataset, self.results_dir, out_file2)
                     sample_im2 = sample_air_images[img_idx,0:self.sh,0:self.sw,0:3]
                     sample_im2 = np.squeeze(sample_im2)
                     try:
@@ -499,8 +489,8 @@ class WGAN(object):
                       print(out_name)
                       print("ERROR!")
                       pass
-                    out_file3 = "/depth_%0d_%02d_%02d.mat" % (epoch, img_idx,idx)
-                    out_name3 = self.resuts_dir + out_file3
+                    out_file3 = "depth_%0d_%02d_%02d.mat" % (epoch, img_idx,idx)
+                    out_name3 = os.path.join(config.water_dataset, self.results_dir, out_file3)
                     sample_im3 = sample_depth_images[img_idx,0:self.sh,0:self.sw,0]
                     sample_im3 = np.squeeze(sample_im3)
                     try:

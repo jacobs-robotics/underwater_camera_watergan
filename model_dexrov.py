@@ -709,7 +709,7 @@ class WGAN(object):
 
   def save(self, checkpoint_dir, step):
     model_name = "DCGAN.model"
-    checkpoint_dir = os.path.join(checkpoint_dir, self.model_dir)
+    checkpoint_dir = os.path.join(self.model_dir, checkpoint_dir)
 
     if not os.path.exists(checkpoint_dir):
       os.makedirs(checkpoint_dir)

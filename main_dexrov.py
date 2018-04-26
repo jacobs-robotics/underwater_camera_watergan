@@ -11,7 +11,7 @@ flags = tf.app.flags
 flags.DEFINE_integer("epoch", 11, "Epoch to train [25]")
 flags.DEFINE_float("learning_rate", 0.0002, "Learning rate of for adam [0.0002]")
 flags.DEFINE_float("beta1", 0.5, "Momentum term of adam [0.5]")
-flags.DEFINE_integer("train_size", 0, "The size of train images [np.inf]") # was np.inf but this does not work?!
+flags.DEFINE_float("train_size", np.inf, "The size of train images [np.inf]")
 flags.DEFINE_integer("batch_size", 64, "The size of batch images [64]")
 flags.DEFINE_integer("input_height", 480, "The size of image to use (will be center cropped). [108]")
 flags.DEFINE_integer("input_width", 640, "The size of image to use (will be center cropped). If None, same value as input_height [None]")
@@ -36,7 +36,7 @@ flags.DEFINE_integer("save_epoch",10, "The size of the output images to produce.
 FLAGS = flags.FLAGS
 
 def main(_):
-  pp.pprint(flags.FLAGS.__flags)
+  #pp.pprint(flags.FLAGS.__flags)
 
   if FLAGS.input_width is None:
     FLAGS.input_width = FLAGS.input_height
@@ -74,8 +74,10 @@ def main(_):
       num_samples = FLAGS.num_samples)
 
     if FLAGS.is_train:
+      print('TRAINING')
       wgan.train(FLAGS)
     else:
+      print('TESTING')
       if not wgan.load(FLAGS.checkpoint_dir):
         raise Exception("[!] Train a model first, then run test mode")
       wgan.test(FLAGS)

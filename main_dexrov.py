@@ -25,7 +25,7 @@ flags.DEFINE_string("water_dataset", "water_images", "The name of dataset [celeb
 flags.DEFINE_string("air_dataset","air_images","The name of dataset with air images")
 flags.DEFINE_string("depth_dataset","air_depth","The name of dataset with depth images")
 flags.DEFINE_string("input_fname_pattern", "*.png", "Glob pattern of filename of input images [*]")
-flags.DEFINE_string("checkpoint_dir", "checkpoint", "Directory name to save the checkpoints [checkpoint]")
+flags.DEFINE_string("checkpoint_dir", "model", "Directory name to save the models [model]")
 flags.DEFINE_string("results_dir", "results", "Directory name to save the checkpoints [results]")
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
 flags.DEFINE_boolean("is_train", True, "True for training, False for testing [False]")

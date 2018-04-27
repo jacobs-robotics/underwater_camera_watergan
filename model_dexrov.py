@@ -135,10 +135,10 @@ class WGAN(object):
     self.z_sum = tf.summary.histogram("z", self.z)
     self.sample_z = tf.placeholder(
       tf.float32, [None, self.z_dim], name='z')
-    self.G,eta_r,eta_g,eta_b,C1,C2,C3,A = self.wc_generator(self.z,air_inputs, depth_inputs,R2,R4,R6)
+    self.G,eta_r,eta_g,eta_b,C1,C2,C3,A = self.watergan_test(self.z, air_inputs, depth_inputs, R2, R4, R6)
     self.D, self.D_logits = self.discriminator(water_inputs)
 
-    self.wc_sampler = self.wc_sampler(self.sample_z,sample_air_inputs, sample_depth_inputs,depth_small_inputs,R2,R4,R6)
+    self.watergan_train = self.watergan_train(self.sample_z,sample_air_inputs, sample_depth_inputs,depth_small_inputs,R2,R4,R6)
     self.D_, self.D_logits_ = self.discriminator(self.G, reuse=True)
     self.d_sum = tf.summary.histogram("d", self.D)
     self.d__sum = tf.summary.histogram("d_", self.D_)
@@ -290,13 +290,13 @@ class WGAN(object):
 
         #if np.mod(counter, 5) == 1:
         if (1):
-          print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
-          print(self.sess.run('wc_generator/g_atten/g_eta_g:0'))
-          print(self.sess.run('wc_generator/g_atten/g_eta_b:0'))
-          print(self.sess.run('wc_generator/g_vig/g_amp:0'))
-          print(self.sess.run('wc_generator/g_vig/g_c1:0'))
-          print(self.sess.run('wc_generator/g_vig/g_c2:0'))
-          print(self.sess.run('wc_generator/g_vig/g_c3:0'))
+          print(self.sess.run('watergan_test/g_atten/g_eta_r:0'))
+          print(self.sess.run('watergan_test/g_atten/g_eta_g:0'))
+          print(self.sess.run('watergan_test/g_atten/g_eta_b:0'))
+          print(self.sess.run('watergan_test/g_vig/g_amp:0'))
+          print(self.sess.run('watergan_test/g_vig/g_c1:0'))
+          print(self.sess.run('watergan_test/g_vig/g_c2:0'))
+          print(self.sess.run('watergan_test/g_vig/g_c3:0'))
 
 
         if (epoch == self.save_epoch) and (checkprint == 0):
@@ -327,6 +327,7 @@ class WGAN(object):
                 sample_depth_images = np.expand_dims(sample_depth_batch,axis=3)
                 sample_z = np.random.uniform(-1,1,[config.batch_size,self.z_dim]).astype(np.float32)
 
+                # run the actual training
                 samples = self.sess.run([self.wc_sampler],
                     feed_dict={self.sample_z:sample_z,self.sample_air_inputs:sample_air_images,
                     self.sample_depth_inputs: sample_depth_images,self.depth_small_inputs:sample_depth_small_images,self.R2:r2, self.R4:r4, self.R6:r6})
@@ -390,17 +391,13 @@ class WGAN(object):
     self.d_sum = tf.summary.merge([self.z_sum, self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
     self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
 
-    # Start training
     counter = 1
     start_time = time.time()
-    errD_fake = 0.0
-    errD_real = 0.0
     if self.load(self.checkpoint_dir):
       print(" [*] Load SUCCESS")
     else:
       print(" [!] Load failed...")
 
-    k1 = np.ones([self.output_height,self.output_width],np.float32)
     r2 = np.ones([self.output_height,self.output_width],np.float32)
     r4 = np.ones([self.output_height,self.output_width],np.float32)
     r6 = np.ones([self.output_height,self.output_width],np.float32)
@@ -416,29 +413,26 @@ class WGAN(object):
 
 
     for epoch in xrange(config.epoch):
-      checkprint=0
       water_data = sorted(glob(os.path.join(config.water_dataset, self.input_fname_pattern)))
       air_data = sorted(glob(os.path.join(config.air_dataset, self.input_fname_pattern)))
       depth_data = sorted(glob(os.path.join(config.depth_dataset, self.input_fname_pattern)))
 
       water_batch_idxs = min(min(len(air_data),len(water_data)), config.train_size) // config.batch_size
-      air_batch_idxs = water_batch_idxs
       randombatch = np.arange(water_batch_idxs*config.batch_size)
       np.random.shuffle(randombatch)
 
       if(1):
         if (1):
-          print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
-          print(self.sess.run('wc_generator/g_atten/g_eta_g:0'))
-          print(self.sess.run('wc_generator/g_atten/g_eta_b:0'))
-          print(self.sess.run('wc_generator/g_vig/g_amp:0'))
-          print(self.sess.run('wc_generator/g_vig/g_c1:0'))
-          print(self.sess.run('wc_generator/g_vig/g_c2:0'))
-          print(self.sess.run('wc_generator/g_vig/g_c3:0'))
+          print(self.sess.run('watergan_test/g_atten/g_eta_r:0'))
+          print(self.sess.run('watergan_test/g_atten/g_eta_g:0'))
+          print(self.sess.run('watergan_test/g_atten/g_eta_b:0'))
+          print(self.sess.run('watergan_test/g_vig/g_amp:0'))
+          print(self.sess.run('watergan_test/g_vig/g_c1:0'))
+          print(self.sess.run('watergan_test/g_vig/g_c2:0'))
+          print(self.sess.run('watergan_test/g_vig/g_c3:0'))
 
         # Load samples in batches of 100
         if (1):
-            checkprint = 1
 
             sample_batch_idxs = self.num_samples // config.batch_size
             for idx in xrange(0, sample_batch_idxs):
@@ -460,6 +454,8 @@ class WGAN(object):
                 sample_depth_small_images = np.expand_dims(sample_depth_small_batch,axis=3)
                 sample_depth_images = np.expand_dims(sample_depth_batch,axis=3)
                 sample_z = np.random.uniform(-1,1,[config.batch_size,self.z_dim]).astype(np.float32)
+
+                # run the prediction method
                 samples = self.sess.run([self.wc_sampler],
                     feed_dict={self.sample_z:sample_z,self.sample_air_inputs:sample_air_images,
                     self.sample_depth_inputs: sample_depth_images,self.depth_small_inputs:sample_depth_small_images,self.R2:r2, self.R4:r4, self.R6:r6})
@@ -504,9 +500,6 @@ class WGAN(object):
                     sample_fake = scipy.misc.imresize(sample_fake,[self.sh,self.sw,3],interp='bicubic')
                     sample_fake = np.expand_dims(sample_fake,axis=0)
                     sample_fake_images_small = np.append(sample_fake_images_small, sample_fake, axis=0)
-        if (np.mod(epoch, 5) == 1) and (idx == 0):
-          self.save(config.checkpoint_dir, counter)
-          print("saving checkpoint")
 
   def discriminator(self, image, depth=None,y=None, reuse=False):
     with tf.variable_scope("discriminator") as scope:
@@ -535,9 +528,9 @@ class WGAN(object):
 
       return tf.nn.sigmoid(h4)
 
-
-  def wc_generator(self, z, image, depth,r2,r4,r6, y=None):
-    with tf.variable_scope("wc_generator") as scope:
+  # the actual WaterGAN testing method
+  def watergan_test(self, z, image, depth, r2, r4, r6, y=None):
+    with tf.variable_scope("watergan_test") as scope:
 
       # water-based attenuation and backscatter
       with tf.variable_scope("g_atten"):
@@ -607,8 +600,9 @@ class WGAN(object):
       h_out = tf.multiply(h1a,A)
       return h_out, eta_r,eta_g,eta_b, C1,C2,C3,A
 
-  def wc_sampler(self, z, image, depth, depth_small,r2,r4,r6,y=None):
-    with tf.variable_scope("wc_generator",reuse=True) as scope:
+  # the actual WaterGAN training method
+  def watergan_train(self, z, image, depth, depth_small, r2, r4, r6, y=None):
+    with tf.variable_scope("watergan_test",reuse=True) as scope:
       # water-based attenuation
       with tf.variable_scope("g_atten",reuse=True):
           init_r = tf.random_normal([1,1,1],mean=0.35,stddev=0.01,dtype=tf.float32)

@@ -229,9 +229,9 @@ def visualize(sess, dcgan, config, option):
         #y_one_hot = np.zeros((config.batch_size, 10))
         #y_one_hot[np.arange(config.batch_size), y] = 1
         print("oops")
-        #samples = sess.run(dcgan.wc_sampler, feed_dict={dcgan.z: z_sample, dcgan.y: y_one_hot})
+        #samples = sess.run(dcgan.watergan_train, feed_dict={dcgan.z: z_sample, dcgan.y: y_one_hot})
       else:
-        samples = sess.run(dcgan.wc_sampler, feed_dict={dcgan.air_inputs: air_batch_images,dcgan.depth_inputs: depth_batch_images})
+        samples = sess.run(dcgan.watergan_train, feed_dict={dcgan.air_inputs: air_batch_images, dcgan.depth_inputs: depth_batch_images})
 
       save_images(samples, [8, 8], './samples/test_arange_%s.png' % (idx))
   elif option == 2:
@@ -249,9 +249,9 @@ def visualize(sess, dcgan, config, option):
         y_one_hot = np.zeros((config.batch_size, 10))
         y_one_hot[np.arange(config.batch_size), y] = 1
 
-        samples = sess.run(dcgan.wc_sampler, feed_dict={dcgan.water_inputs: air_batch_images, dcgan.y: y_one_hot})
+        samples = sess.run(dcgan.watergan_train, feed_dict={dcgan.water_inputs: air_batch_images, dcgan.y: y_one_hot})
       else:
-        samples = sess.run(dcgan.wc_sampler, feed_dict={dcgan.air_inputs:air_batch_images,dcgan.depth_inputs:depth_batch_images})
+        samples = sess.run(dcgan.watergan_train, feed_dict={dcgan.air_inputs:air_batch_images, dcgan.depth_inputs:depth_batch_images})
 
       try:
         make_gif(samples, './samples/test_gif_%s.gif' % (idx))

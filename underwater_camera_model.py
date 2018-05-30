@@ -25,8 +25,7 @@ class WGAN(object):
                  batch_size=64, sample_num=64, output_height=256, output_width=256,
                  y_dim=None, z_dim=100, gf_dim=64, df_dim=64, gfc_dim=1024, dfc_dim=1024, c_dim=3, max_depth=3.0,
                  save_epoch=100,
-                 water_dataset_name='default', air_dataset_name='default',
-                 depth_dataset_name='default', input_fname_pattern='*.png', checkpoint_dir=None, results_dir=None,
+                 water_dataset_name='default', input_fname_pattern='*.png', checkpoint_dir=None, results_dir=None,
                  sample_dir=None, num_samples=4000):
         """
 
@@ -85,14 +84,10 @@ class WGAN(object):
             self.g_bn4 = batch_norm(name='g_bn4')
 
         self.water_dataset_name = water_dataset_name
-        self.air_dataset_name = air_dataset_name
-        self.depth_datset_name = depth_dataset_name
         self.input_fname_pattern = input_fname_pattern
         self.checkpoint_dir = checkpoint_dir
         self.results_dir = results_dir
-        self.build_model()
 
-    def build_model(self):
         if self.y_dim:
             self.y = tf.placeholder(tf.float32, [self.batch_size, self.y_dim], name='y')
 
@@ -183,230 +178,14 @@ class WGAN(object):
         self.g_vars = [var for var in t_vars if 'g_' in var.name]
         self.saver = tf.train.Saver()
 
-    def train(self, config):
-        """Train WGAN"""
+    def load_model(self, config):
 
-        d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
-            .minimize(self.d_loss, var_list=self.d_vars)
-        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
-            .minimize(self.g_loss, var_list=self.g_vars)
-        try:
-            tf.global_variables_initializer().run()
-        except:
-            tf.initialize_all_variables().run()
+        self.config = config
 
-        self.g_sum = tf.summary.merge([self.z_sum, self.d__sum, self.G_sum, self.d_loss_fake_sum, self.g_loss_sum])
-        self.d_sum = tf.summary.merge([self.z_sum, self.d_sum, self.d_loss_real_sum, self.d_loss_sum])
-        self.writer = tf.summary.FileWriter("./logs", self.sess.graph)
-
-        # Start training
-        counter = 1
-        start_time = time.time()
-        errD_fake = 0.0
-        errD_real = 0.0
-        if self.load(self.checkpoint_dir):
-            print(" [*] Load SUCCESS")
-        else:
-            print(" [!] Load failed...")
-
-        k1 = np.ones([self.output_height, self.output_width], np.float32)
-        r2 = np.ones([self.output_height, self.output_width], np.float32)
-        r4 = np.ones([self.output_height, self.output_width], np.float32)
-        r6 = np.ones([self.output_height, self.output_width], np.float32)
-
-        # kernel = kernel.astype(np.float32)
-        cx = self.output_width / 2
-        cy = self.output_height / 2
-        for i in range(0, self.output_height):
-            for j in range(0, self.output_width):
-                r = np.sqrt((i - cy) * (i - cy) + (j - cx) * (j - cx)) / (np.sqrt(cy * cy + cx * cx))
-                r2[i, j] = r * r
-                r4[i, j] = r * r * r * r
-                r6[i, j] = r * r * r * r * r * r
-        # plt.imshow(r4, interpolation='none',cmap='Greys')
-        # plt.savefig('test.png')
-        print(r4.shape)
-        print(r4.dtype)
-
-        for epoch in xrange(config.epoch):
-            checkprint = 0
-            water_data = sorted(glob(os.path.join(config.water_dataset, self.input_fname_pattern)))
-            air_data = sorted(glob(os.path.join(config.air_dataset, self.input_fname_pattern)))
-            depth_data = sorted(glob(os.path.join(config.depth_dataset, self.input_fname_pattern)))
-
-            water_batch_idxs = min(min(len(air_data), len(water_data)), config.train_size) // config.batch_size
-            air_batch_idxs = water_batch_idxs
-            randombatch = np.arange(water_batch_idxs * config.batch_size)
-            np.random.shuffle(randombatch)
-            # Load water images
-            for idx in xrange(0, (water_batch_idxs * config.batch_size), config.batch_size):
-                water_batch_files = []
-                air_batch_files = []
-                depth_batch_files = []
-
-                for id in xrange(0, config.batch_size):
-                    water_batch_files = np.append(water_batch_files, water_data[randombatch[idx + id]])
-                    air_batch_files = np.append(air_batch_files, air_data[randombatch[idx + id]])
-                    depth_batch_files = np.append(depth_batch_files, depth_data[randombatch[idx + id]])
-                # print(depth_batch_files)
-                if self.is_crop:
-                    air_batch = [self.read_img(air_batch_file) for air_batch_file in air_batch_files]
-                    water_batch = [self.read_img(water_batch_file) for water_batch_file in water_batch_files]
-                    depth_batch = [self.read_depth(depth_batch_file) for depth_batch_file in depth_batch_files]
-                else:
-                    air_batch = [scipy.misc.imread(air_batch_file) for air_batch_file in air_batch_files]
-                    water_batch = [scipy.misc.imread(water_batch_file) for water_batch_file in water_batch_files]
-                    depth_batch = [self.read_depth(depth_batch_file) for depth_batch_file in depth_batch_files]
-                air_batch_images = np.array(air_batch).astype(np.float32)
-                water_batch_images = np.array(water_batch).astype(np.float32)
-                depth_batch_images = np.expand_dims(depth_batch, axis=3)
-                r2 = np.array(r2).astype(np.float32)
-                r4 = np.array(r4).astype(np.float32)
-                r6 = np.array(r6).astype(np.float32)
-                # print(r4.dtype)
-                # print(r4.shape)
-
-                batch_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]).astype(np.float32)
-
-                # Update D network
-                _, summary_str = self.sess.run([d_optim, self.d_sum],
-                                               feed_dict={self.z: batch_z, self.water_inputs: water_batch_images,
-                                                          self.air_inputs: air_batch_images,
-                                                          self.depth_inputs: depth_batch_images, self.R2: r2,
-                                                          self.R4: r4, self.R6: r6})
-                self.writer.add_summary(summary_str, counter)
-
-                # Update G network
-                _, summary_str = self.sess.run([g_optim, self.g_sum],
-                                               feed_dict={self.z: batch_z, self.air_inputs: air_batch_images,
-                                                          self.depth_inputs: depth_batch_images, self.R2: r2,
-                                                          self.R4: r4, self.R6: r6})
-                self.writer.add_summary(summary_str, counter)
-
-                # Run g_optim twice to make sure that d_loss does not go to zero (different from paper)
-                _, summary_str = self.sess.run([g_optim, self.g_sum],
-                                               feed_dict={self.z: batch_z, self.air_inputs: air_batch_images,
-                                                          self.depth_inputs: depth_batch_images, self.R2: r2,
-                                                          self.R4: r4, self.R6: r6})
-                self.writer.add_summary(summary_str, counter)
-
-                errD_fake = self.d_loss_fake.eval(
-                    {self.z: batch_z, self.air_inputs: air_batch_images, self.depth_inputs: depth_batch_images,
-                     self.R2: r2, self.R4: r4, self.R6: r6})
-                errD_real = self.d_loss_real.eval({self.water_inputs: water_batch_images})
-                errG = self.g_loss.eval(
-                    {self.z: batch_z, self.air_inputs: air_batch_images, self.depth_inputs: depth_batch_images,
-                     self.R2: r2, self.R4: r4, self.R6: r6})
-
-                counter += 1
-                print("Epoch: [%2d] [%4d/%4d] time: %4.4f, d_loss: %.8f, g_loss: %.8f" \
-                      % (epoch, idx, water_batch_idxs,
-                         time.time() - start_time, errD_fake + errD_real, errG))
-
-                # if np.mod(counter, 5) == 1:
-                if (1):
-                    print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
-                    print(self.sess.run('wc_generator/g_atten/g_eta_g:0'))
-                    print(self.sess.run('wc_generator/g_atten/g_eta_b:0'))
-                    print(self.sess.run('wc_generator/g_vig/g_amp:0'))
-                    print(self.sess.run('wc_generator/g_vig/g_c1:0'))
-                    print(self.sess.run('wc_generator/g_vig/g_c2:0'))
-                    print(self.sess.run('wc_generator/g_vig/g_c3:0'))
-
-                if (epoch == self.save_epoch) and (checkprint == 0):
-                    # Load samples in batches of 100
-                    checkprint = 1
-                    self.save(config.checkpoint_dir, counter)
-                    print("saving checkpoint")
-
-                    sample_batch_idxs = self.num_samples // config.batch_size
-                    # print(sample_batch_idxs)
-                    for idx in xrange(0, sample_batch_idxs):
-                        sample_water_batch_files = water_data[idx * config.batch_size:(idx + 1) * config.batch_size]
-                        sample_air_batch_files = air_data[idx * config.batch_size:(idx + 1) * config.batch_size]
-                        sample_depth_batch_files = depth_data[idx * config.batch_size:(idx + 1) * config.batch_size]
-                        if self.is_crop:
-                            sample_air_batch = [self.read_img_sample(sample_air_batch_file) for sample_air_batch_file in
-                                                sample_air_batch_files]
-                            sample_water_batch = [self.read_img_sample(sample_water_batch_file) for
-                                                  sample_water_batch_file in sample_water_batch_files]
-                            sample_depth_small_batch = [self.read_depth_small(sample_depth_batch_file) for
-                                                        sample_depth_batch_file in sample_depth_batch_files]
-                            sample_depth_batch = [self.read_depth_sample(sample_depth_batch_file) for
-                                                  sample_depth_batch_file in sample_depth_batch_files]
-                        else:
-                            sample_air_batch = [scipy.misc.imread(sample_air_batch_file) for sample_air_batch_file in
-                                                sample_air_batch_files]
-                            sample_water_batch = [scipy.misc.imread(sample_water_batch_file) for sample_water_batch_file
-                                                  in sample_water_batch_files]
-                            sample_depth_batch = [self.read_depth_sample(sample_depth_batch_file) for
-                                                  sample_depth_batch_file in sample_depth_batch_files]
-                            sample_depth_small_batch = [self.read_depth_small(sample_depth_batch_file) for
-                                                        sample_depth_batch_file in sample_depth_batch_files]
-                        sample_air_images = np.array(sample_air_batch).astype(np.float32)
-                        sample_water_images = np.array(sample_water_batch).astype(np.float32)
-                        sample_depth_small_images = np.expand_dims(sample_depth_small_batch, axis=3)
-                        sample_depth_images = np.expand_dims(sample_depth_batch, axis=3)
-                        sample_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]).astype(np.float32)
-
-                        # run the actual training
-                        samples = self.sess.run([self.wc_sampler],
-                                                feed_dict={self.sample_z: sample_z,
-                                                           self.sample_air_inputs: sample_air_images,
-                                                           self.sample_depth_inputs: sample_depth_images,
-                                                           self.depth_small_inputs: sample_depth_small_images,
-                                                           self.R2: r2, self.R4: r4, self.R6: r6})
-                        sample_ims = np.asarray(samples)
-                        sample_ims = np.squeeze(sample_ims)
-                        sample_fake_images = sample_ims[:, 0:self.sh, 0:self.sw, 0:3]
-                        sample_fake_images_small = np.empty([0, self.sh, self.sw, 3])
-                        for img_idx in range(0, self.batch_size):
-                            out_file = "/fake_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
-                            out_name = self.results_dir + out_file
-                            print(out_name)
-                            sample_im = sample_ims[img_idx, 0:self.sh, 0:self.sw, 0:3]
-                            sample_im = np.squeeze(sample_im)
-                            try:
-                                scipy.misc.imsave(out_name, sample_im)
-                            except OSError:
-                                print(out_name)
-                                print("ERROR!")
-                                pass
-                            out_file2 = "/air_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
-                            out_name2 = self.results_dir + out_file2
-                            sample_im2 = sample_air_images[img_idx, 0:self.sh, 0:self.sw, 0:3]
-                            sample_im2 = np.squeeze(sample_im2)
-                            try:
-                                scipy.misc.imsave(out_name2, sample_im2)
-                            except OSError:
-                                print(out_name)
-                                print("ERROR!")
-                                pass
-                            out_file3 = "/depth_%0d_%02d_%02d.mat" % (epoch, img_idx, idx)
-                            out_name3 = self.results_dir + out_file3
-                            sample_im3 = sample_depth_images[img_idx, 0:self.sh, 0:self.sw, 0]
-                            sample_im3 = np.squeeze(sample_im3)
-                            try:
-                                sio.savemat(out_name3, {'depth': sample_im3})
-                            except OSError:
-                                print(out_name)
-                                print("ERROR!")
-                                pass
-                            sample_fake = sample_fake_images[img_idx, 0:self.sh, 0:self.sw, 0:3]
-                            sample_fake = np.squeeze(sample_fake)
-                            sample_fake = scipy.misc.imresize(sample_fake, [self.sh, self.sw, 3], interp='bicubic')
-                            sample_fake = np.expand_dims(sample_fake, axis=0)
-                            sample_fake_images_small = np.append(sample_fake_images_small, sample_fake, axis=0)
-                if (np.mod(epoch, 2) == 0) and (idx == 0):
-                    self.save(config.checkpoint_dir, counter)
-                    print("saving checkpoint")
-
-    def test(self, config):
-
-        d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
-            .minimize(self.d_loss, var_list=self.d_vars)
-        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1) \
-            .minimize(self.g_loss, var_list=self.g_vars)
+        d_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1).minimize(self.d_loss,
+                                                                                            var_list=self.d_vars)
+        g_optim = tf.train.AdamOptimizer(config.learning_rate, beta1=config.beta1).minimize(self.g_loss,
+                                                                                            var_list=self.g_vars)
         try:
             tf.global_variables_initializer().run()
         except:
@@ -423,28 +202,34 @@ class WGAN(object):
         else:
             print(" [!] Load failed...")
 
-        r2 = np.ones([self.output_height, self.output_width], np.float32)
-        r4 = np.ones([self.output_height, self.output_width], np.float32)
-        r6 = np.ones([self.output_height, self.output_width], np.float32)
+        self.r2 = np.ones([self.output_height, self.output_width], np.float32)
+        self.r4 = np.ones([self.output_height, self.output_width], np.float32)
+        self.r6 = np.ones([self.output_height, self.output_width], np.float32)
 
         cx = self.output_width / 2
         cy = self.output_height / 2
         for i in range(0, self.output_height):
             for j in range(0, self.output_width):
                 r = np.sqrt((i - cy) * (i - cy) + (j - cx) * (j - cx)) / (np.sqrt(cy * cy + cx * cx))
-                r2[i, j] = r * r
-                r4[i, j] = r * r * r * r
-                r6[i, j] = r * r * r * r * r * r
+                self.r2[i, j] = r * r
+                self.r4[i, j] = r * r * r * r
+                self.r6[i, j] = r * r * r * r * r * r
 
-        for epoch in xrange(config.epoch):
-            water_data = sorted(glob(os.path.join(config.water_dataset, self.input_fname_pattern)))
-            air_data = sorted(glob(os.path.join(config.air_dataset, self.input_fname_pattern)))
-            depth_data = sorted(glob(os.path.join(config.depth_dataset, self.input_fname_pattern)))
+    # predict for single image
+    def predict(self, input_image):
+
+        for epoch in xrange(self.config.epoch):
+            water_data = sorted(glob(os.path.join(self.config.water_dataset, self.input_fname_pattern)))
+            #air_data = sorted(glob(os.path.join(self.config.air_dataset, self.input_fname_pattern)))
+            #depth_data = sorted(glob(os.path.join(self.config.depth_dataset, self.input_fname_pattern)))
+            air_data = '/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png'
+            depth_data = '/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png'
 
             print(len(air_data), len(depth_data))
 
-            water_batch_idxs = min(min(len(air_data), len(water_data)), config.train_size) // config.batch_size
-            randombatch = np.arange(water_batch_idxs * config.batch_size)
+            water_batch_idxs = min(min(len(air_data), len(water_data)),
+                                   self.config.train_size) // self.config.batch_size
+            randombatch = np.arange(water_batch_idxs * self.config.batch_size)
             np.random.shuffle(randombatch)
 
             print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
@@ -457,11 +242,11 @@ class WGAN(object):
 
             # Load samples in batches of 100
 
-            sample_batch_idxs = self.num_samples // config.batch_size
+            sample_batch_idxs = self.num_samples // self.config.batch_size
             for idx in xrange(0, sample_batch_idxs):
-                sample_water_batch_files = water_data[idx * config.batch_size:(idx + 1) * config.batch_size]
-                sample_air_batch_files = air_data[idx * config.batch_size:(idx + 1) * config.batch_size]
-                sample_depth_batch_files = depth_data[idx * config.batch_size:(idx + 1) * config.batch_size]
+                sample_water_batch_files = water_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
+                sample_air_batch_files = air_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
+                sample_depth_batch_files = depth_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
                 if self.is_crop:
                     sample_air_batch = [self.read_img_sample(sample_air_batch_file) for sample_air_batch_file in
                                         sample_air_batch_files]
@@ -481,27 +266,17 @@ class WGAN(object):
                     sample_depth_small_batch = [self.read_depth_small(sample_depth_batch_file) for
                                                 sample_depth_batch_file in sample_depth_batch_files]
                 sample_air_images = np.array(sample_air_batch).astype(np.float32)
-                print('number of testing air images: '+str(len(sample_air_images)))
+                print('number of testing air images: ' + str(len(sample_air_images)))
                 sample_depth_small_images = np.expand_dims(sample_depth_small_batch, axis=3)
                 sample_depth_images = np.expand_dims(sample_depth_batch, axis=3)
-                sample_z = np.random.uniform(-1, 1, [config.batch_size, self.z_dim]).astype(np.float32)
+                sample_z = np.random.uniform(-1, 1, [self.config.batch_size, self.z_dim]).astype(np.float32)
 
                 # run the prediction method
-
-                #sample = self.sess.run([self.wc_generator],
-                #                        feed_dict={self.sample_z: sample_z, self.sample_air_inputs: sample_air_images,
-                #                                   self.sample_depth_inputs: sample_depth_images,
-                #                                   self.depth_small_inputs: sample_depth_small_images, self.R2: r2,
-                #                                   self.R4: r4, self.R6: r6})
-
-                #print(sample)
-                #self.wc_generator(self.z, air_inputs, depth_inputs, R2, R4, R6)
-
                 samples = self.sess.run([self.wc_sampler],
                                         feed_dict={self.sample_z: sample_z, self.sample_air_inputs: sample_air_images,
                                                    self.sample_depth_inputs: sample_depth_images,
-                                                   self.depth_small_inputs: sample_depth_small_images, self.R2: r2,
-                                                   self.R4: r4, self.R6: r6})
+                                                   self.depth_small_inputs: sample_depth_small_images, self.R2: self.r2,
+                                                   self.R4: self.r4, self.R6: self.r6})
                 print('samples: ')
                 print(samples)
 
@@ -511,7 +286,7 @@ class WGAN(object):
                 sample_fake_images_small = np.empty([0, self.sh, self.sw, 3])
                 for img_idx in range(0, self.batch_size):
                     out_file = "fake_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
-                    out_name = os.path.join(config.water_dataset, self.results_dir, out_file)
+                    out_name = os.path.join(self.config.water_dataset, self.results_dir, out_file)
                     print(out_name)
                     sample_im = sample_ims[img_idx, 0:self.sh, 0:self.sw, 0:3]
                     sample_im = np.squeeze(sample_im)
@@ -522,7 +297,7 @@ class WGAN(object):
                         print("ERROR!")
                         pass
                     out_file2 = "air_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
-                    out_name2 = os.path.join(config.water_dataset, self.results_dir, out_file2)
+                    out_name2 = os.path.join(self.config.water_dataset, self.results_dir, out_file2)
                     sample_im2 = sample_air_images[img_idx, 0:self.sh, 0:self.sw, 0:3]
                     sample_im2 = np.squeeze(sample_im2)
                     try:
@@ -532,7 +307,7 @@ class WGAN(object):
                         print("ERROR!")
                         pass
                     out_file3 = "depth_%0d_%02d_%02d.mat" % (epoch, img_idx, idx)
-                    out_name3 = os.path.join(config.water_dataset, self.results_dir, out_file3)
+                    out_name3 = os.path.join(self.config.water_dataset, self.results_dir, out_file3)
                     sample_im3 = sample_depth_images[img_idx, 0:self.sh, 0:self.sw, 0]
                     sample_im3 = np.squeeze(sample_im3)
                     try:

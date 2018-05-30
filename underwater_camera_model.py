@@ -222,26 +222,20 @@ class WGAN(object):
             water_data = sorted(glob(os.path.join(self.config.water_dataset, self.input_fname_pattern)))
             #air_data = sorted(glob(os.path.join(self.config.air_dataset, self.input_fname_pattern)))
             #depth_data = sorted(glob(os.path.join(self.config.depth_dataset, self.input_fname_pattern)))
-            air_data = '/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png'
-            depth_data = '/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png'
 
-            print(len(air_data), len(depth_data))
+            # TODO place RGBD image from simulated camera here
+            air_data = ['/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png']
+            depth_data = ['/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png']
 
-            water_batch_idxs = min(min(len(air_data), len(water_data)),
-                                   self.config.train_size) // self.config.batch_size
-            randombatch = np.arange(water_batch_idxs * self.config.batch_size)
-            np.random.shuffle(randombatch)
+            #print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
+            #print(self.sess.run('wc_generator/g_atten/g_eta_g:0'))
+            #print(self.sess.run('wc_generator/g_atten/g_eta_b:0'))
+            #print(self.sess.run('wc_generator/g_vig/g_amp:0'))
+            #print(self.sess.run('wc_generator/g_vig/g_c1:0'))
+            #print(self.sess.run('wc_generator/g_vig/g_c2:0'))
+            #print(self.sess.run('wc_generator/g_vig/g_c3:0'))
 
-            print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
-            print(self.sess.run('wc_generator/g_atten/g_eta_g:0'))
-            print(self.sess.run('wc_generator/g_atten/g_eta_b:0'))
-            print(self.sess.run('wc_generator/g_vig/g_amp:0'))
-            print(self.sess.run('wc_generator/g_vig/g_c1:0'))
-            print(self.sess.run('wc_generator/g_vig/g_c2:0'))
-            print(self.sess.run('wc_generator/g_vig/g_c3:0'))
-
-            # Load samples in batches of 100
-
+            # TODO use only one image here
             sample_batch_idxs = self.num_samples // self.config.batch_size
             for idx in xrange(0, sample_batch_idxs):
                 sample_water_batch_files = water_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
@@ -522,8 +516,8 @@ class WGAN(object):
                         global_step=step)
 
     def load(self, checkpoint_dir):
-        print(" [*] Reading checkpoints...")
         checkpoint_dir = os.path.join(self.model_dir, checkpoint_dir)
+        print(" [*] Reading model from {}...".format(checkpoint_dir))
 
         ckpt = tf.train.get_checkpoint_state(checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
@@ -532,7 +526,7 @@ class WGAN(object):
             print(" [*] Success to read {}".format(ckpt_name))
             return True
         else:
-            print(" [*] Failed to find a checkpoint")
+            print(" [*] Failed to find a model in {}!".format(checkpoint_dir))
             return False
 
     def read_depth(self, filename):

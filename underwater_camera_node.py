@@ -9,7 +9,7 @@ from utils import pp, visualize, to_json
 import tensorflow as tf
 
 flags = tf.app.flags
-flags.DEFINE_integer("epoch", 11, "Epoch to train [25]")
+flags.DEFINE_integer("epoch", 1, "Epoch to train [25]")
 flags.DEFINE_float("learning_rate", 0.0002, "Learning rate of for adam [0.0002]")
 flags.DEFINE_float("beta1", 0.5, "Momentum term of adam [0.5]")
 flags.DEFINE_float("train_size", np.inf, "The size of train images [np.inf]")
@@ -32,7 +32,7 @@ flags.DEFINE_string("results_dir", "results", "Directory name to save the checkp
 flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
 flags.DEFINE_boolean("is_crop", True, "True for training, False for testing [False]")
 flags.DEFINE_boolean("visualize", False, "True for visualizing, False for nothing [False]")
-flags.DEFINE_integer("num_samples", 64, "True for visualizing, False for nothing [4000]")
+flags.DEFINE_integer("num_samples", 1, "True for visualizing, False for nothing [4000]")
 flags.DEFINE_integer("save_epoch", 10,
                      "The size of the output images to produce. If None, same value as output_height [None]")
 FLAGS = flags.FLAGS

@@ -358,6 +358,7 @@ class WGAN(object):
                                                            self.R2: r2, self.R4: r4, self.R6: r6})
                         sample_ims = np.asarray(samples)
                         sample_ims = np.squeeze(sample_ims)
+                        print(sample_ims.shape)
                         sample_fake_images = sample_ims[:, 0:self.sh, 0:self.sw, 0:3]
                         sample_fake_images_small = np.empty([0, self.sh, self.sw, 3])
                         for img_idx in range(0, self.batch_size):
@@ -506,7 +507,8 @@ class WGAN(object):
                 print(samples)
 
                 sample_ims = np.asarray(samples)
-                sample_ims = np.squeeze(sample_ims)
+                # remove only first dimension to prevent from errors with batch size = 1
+                sample_ims = np.squeeze(sample_ims, axis=0)
                 sample_fake_images = sample_ims[:, 0:self.sh, 0:self.sw, 0:3]
                 sample_fake_images_small = np.empty([0, self.sh, self.sw, 3])
                 for img_idx in range(0, self.batch_size):

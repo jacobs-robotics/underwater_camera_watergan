@@ -237,7 +237,7 @@ class WGAN(object):
 
             # TODO use only one image here
             sample_batch_idxs = self.num_samples // self.config.batch_size
-            for idx in xrange(0, sample_batch_idxs):
+            for idx in xrange(sample_batch_idxs):
                 sample_water_batch_files = water_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
                 sample_air_batch_files = air_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
                 sample_depth_batch_files = depth_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
@@ -275,7 +275,8 @@ class WGAN(object):
                 print(samples)
 
                 sample_ims = np.asarray(samples)
-                sample_ims = np.squeeze(sample_ims)
+                # remove only first dimension to prevent from errors with batch size = 1
+                sample_ims = np.squeeze(sample_ims, axis=0)
                 sample_fake_images = sample_ims[:, 0:self.sh, 0:self.sw, 0:3]
                 sample_fake_images_small = np.empty([0, self.sh, self.sw, 3])
                 for img_idx in range(0, self.batch_size):

@@ -216,16 +216,20 @@ class WGAN(object):
                 self.r6[i, j] = r * r * r * r * r * r
 
     # predict for single image
-    def predict(self, input_image):
+    def predict(self, input_image, input_depth):
 
         for epoch in xrange(self.config.epoch):
             water_data = sorted(glob(os.path.join(self.config.water_dataset, self.input_fname_pattern)))
             #air_data = sorted(glob(os.path.join(self.config.air_dataset, self.input_fname_pattern)))
             #depth_data = sorted(glob(os.path.join(self.config.depth_dataset, self.input_fname_pattern)))
 
-            # TODO place RGBD image from simulated camera here
-            air_data = ['/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png']
-            depth_data = ['/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png']
+            # TODO replace this
+            scipy.misc.imsave('/home/tobi/Desktop/rgb_image.png', input_image)
+            scipy.misc.imsave('/home/tobi/Desktop/depth_image.png', input_depth)
+            air_data = ['/home/tobi/Desktop/rgb_image.png']
+            depth_data = ['/home/tobi/Desktop/depth_image.png']
+            #air_data = ['/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png']
+            #depth_data = ['/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png']
 
             #print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
             #print(self.sess.run('wc_generator/g_atten/g_eta_g:0'))
@@ -237,7 +241,8 @@ class WGAN(object):
 
             # TODO use only one image here
             sample_batch_idxs = self.num_samples // self.config.batch_size
-            for idx in xrange(sample_batch_idxs):
+            #for idx in xrange(sample_batch_idxs):
+            for idx in [0]:
                 sample_water_batch_files = water_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
                 sample_air_batch_files = air_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
                 sample_depth_batch_files = depth_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
@@ -260,7 +265,7 @@ class WGAN(object):
                     sample_depth_small_batch = [self.read_depth_small(sample_depth_batch_file) for
                                                 sample_depth_batch_file in sample_depth_batch_files]
                 sample_air_images = np.array(sample_air_batch).astype(np.float32)
-                print('number of testing air images: ' + str(len(sample_air_images)))
+                #print('number of testing air images: ' + str(len(sample_air_images)))
                 sample_depth_small_images = np.expand_dims(sample_depth_small_batch, axis=3)
                 sample_depth_images = np.expand_dims(sample_depth_batch, axis=3)
                 sample_z = np.random.uniform(-1, 1, [self.config.batch_size, self.z_dim]).astype(np.float32)
@@ -271,8 +276,8 @@ class WGAN(object):
                                                    self.sample_depth_inputs: sample_depth_images,
                                                    self.depth_small_inputs: sample_depth_small_images, self.R2: self.r2,
                                                    self.R4: self.r4, self.R6: self.r6})
-                print('samples: ')
-                print(samples)
+                #print('samples: ')
+                #print(samples)
 
                 sample_ims = np.asarray(samples)
                 # remove only first dimension to prevent from errors with batch size = 1
@@ -282,9 +287,9 @@ class WGAN(object):
                 for img_idx in range(0, self.batch_size):
                     out_file = "fake_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
                     out_name = os.path.join(self.config.water_dataset, self.results_dir, out_file)
-                    print(out_name)
                     sample_im = sample_ims[img_idx, 0:self.sh, 0:self.sw, 0:3]
                     sample_im = np.squeeze(sample_im)
+
                     try:
                         scipy.misc.imsave(out_name, sample_im)
                     except OSError:
@@ -316,6 +321,8 @@ class WGAN(object):
                     sample_fake = scipy.misc.imresize(sample_fake, [self.sh, self.sw, 3], interp='bicubic')
                     sample_fake = np.expand_dims(sample_fake, axis=0)
                     sample_fake_images_small = np.append(sample_fake_images_small, sample_fake, axis=0)
+
+                return sample_im
 
     def discriminator(self, image, depth=None, y=None, reuse=False):
         with tf.variable_scope("discriminator") as scope:

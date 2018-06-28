@@ -26,7 +26,7 @@ class WGAN(object):
                  y_dim=None, z_dim=100, gf_dim=64, df_dim=64, gfc_dim=1024, dfc_dim=1024, c_dim=3, max_depth=3.0,
                  save_epoch=100,
                  water_dataset_name='default', input_fname_pattern='*.png', checkpoint_dir=None, results_dir=None,
-                 sample_dir=None, num_samples=4000):
+                 sample_dir=None):
         """
 
         Args:
@@ -44,7 +44,6 @@ class WGAN(object):
         self.is_crop = is_crop
         self.is_grayscale = (c_dim == 1)
         self.batch_size = batch_size
-        self.num_samples = num_samples
 
         self.input_height = input_height
         self.input_width = input_width
@@ -100,7 +99,7 @@ class WGAN(object):
         self.depth_inputs = tf.placeholder(
             tf.float32, [self.batch_size] + [self.output_height, self.output_width, 1], name='depth')
         self.water_sample_inputs = tf.placeholder(
-            tf.float32, [self.num_samples] + image_dims, name='sample_inputs')
+            tf.float32, [1] + image_dims, name='sample_inputs')
         self.depth_small_inputs = tf.placeholder(
             tf.float32, [self.batch_size] + [self.output_height, self.output_width, 1], name='depth_small')
 
@@ -215,6 +214,15 @@ class WGAN(object):
                 self.r4[i, j] = r * r * r * r
                 self.r6[i, j] = r * r * r * r * r * r
 
+        print(' [*] WaterGAN initialized, settings: ')
+        print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
+        print(self.sess.run('wc_generator/g_atten/g_eta_g:0'))
+        print(self.sess.run('wc_generator/g_atten/g_eta_b:0'))
+        print(self.sess.run('wc_generator/g_vig/g_amp:0'))
+        print(self.sess.run('wc_generator/g_vig/g_c1:0'))
+        print(self.sess.run('wc_generator/g_vig/g_c2:0'))
+        print(self.sess.run('wc_generator/g_vig/g_c3:0'))
+
     # predict for single image
     def predict(self, input_image, input_depth):
 
@@ -231,17 +239,6 @@ class WGAN(object):
             #air_data = ['/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png']
             #depth_data = ['/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png']
 
-            #print(self.sess.run('wc_generator/g_atten/g_eta_r:0'))
-            #print(self.sess.run('wc_generator/g_atten/g_eta_g:0'))
-            #print(self.sess.run('wc_generator/g_atten/g_eta_b:0'))
-            #print(self.sess.run('wc_generator/g_vig/g_amp:0'))
-            #print(self.sess.run('wc_generator/g_vig/g_c1:0'))
-            #print(self.sess.run('wc_generator/g_vig/g_c2:0'))
-            #print(self.sess.run('wc_generator/g_vig/g_c3:0'))
-
-            # TODO use only one image here
-            sample_batch_idxs = self.num_samples // self.config.batch_size
-            #for idx in xrange(sample_batch_idxs):
             for idx in [0]:
                 sample_water_batch_files = water_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
                 sample_air_batch_files = air_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
@@ -312,6 +309,16 @@ class WGAN(object):
                     sample_im3 = np.squeeze(sample_im3)
                     try:
                         sio.savemat(out_name3, {'depth': sample_im3})
+                    except OSError:
+                        print(out_name)
+                        print("ERROR!")
+                        pass
+                    out_file4 = "depth_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
+                    out_name4 = os.path.join(self.config.water_dataset, self.results_dir, out_file4)
+                    sample_im4 = sample_depth_images[img_idx, 0:self.sh, 0:self.sw, 0:3]
+                    sample_im4 = np.squeeze(sample_im4)
+                    try:
+                        scipy.misc.imsave(out_name4, sample_im4)
                     except OSError:
                         print(out_name)
                         print("ERROR!")
@@ -583,6 +590,8 @@ class WGAN(object):
         ds = depthtmp.shape
         if self.is_crop:
             depth = scipy.misc.imresize(depthtmp, (self.sh, self.sw), mode='F')
+        else:
+            depth = depthtmp
         depth = np.array(depth).astype(np.float32)
         depth = np.multiply(self.max_depth, np.divide(depth, depth.max()))
 

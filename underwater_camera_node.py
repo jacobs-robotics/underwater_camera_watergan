@@ -45,7 +45,6 @@ def init():
     flags.DEFINE_string("sample_dir", "samples", "Directory name to save the image samples [samples]")
     flags.DEFINE_boolean("is_crop", True, "True for training, False for testing [False]")
     flags.DEFINE_boolean("visualize", False, "True for visualizing, False for nothing [False]")
-    flags.DEFINE_integer("num_samples", 1, "True for visualizing, False for nothing [4000]")
     flags.DEFINE_integer("save_epoch", 10,
                          "The size of the output images to produce. If None, same value as output_height [None]")
     flags = flags.FLAGS
@@ -77,14 +76,10 @@ def camera_callback(rgb_image, depth_image):
         try:
             cv_rgb_image = CvBridge().imgmsg_to_cv2(rgb_image, "rgb8")
             data = ros_numpy.numpify(depth_image)
-
             where_are_NaNs = np.isnan(data)
             data[where_are_NaNs] = 0
             cv2.normalize(data, data, 0, 255, cv2.NORM_MINMAX)
             cv_depth_image = data
-            #data = data / np.sqrt(np.nansum(np.square(data)))
-            #cv_depth_image = data * 255 / 5
-            #print(cv_depth_image)
 
         except CvBridgeError as e:
             print(e)
@@ -121,19 +116,15 @@ def main(_):
             is_crop=flags.is_crop,
             checkpoint_dir=flags.checkpoint_dir,
             results_dir=flags.results_dir,
-            sample_dir=flags.sample_dir,
-            num_samples=flags.num_samples)
+            sample_dir=flags.sample_dir)
 
         print('Running Underwater Camera ROS Node')
         wgan.load_model(flags)
-        if not wgan.load(flags.checkpoint_dir):
-            raise Exception("[!] Train a model first, then run test mode")
-
         is_initialized = True
 
         # Below is codes for visualization
         # OPTION = 1
-        # visualize(sess, wgan, FLAGS, OPTION)
+        #visualize(sess, wgan, FLAGS, OPTION)
         rospy.spin()
 
 

@@ -20,19 +20,20 @@ except:
   SummaryWriter = tf.summary.FileWriter
 
 class batch_norm(object):
-  def __init__(self, epsilon=1e-5, momentum = 0.9, name="batch_norm"):
+  def __init__(self, epsilon=1e-5, momentum = 0.9, name="batch_norm", use_batchsize_for_training=False):
     with tf.variable_scope(name):
       self.epsilon  = epsilon
       self.momentum = momentum
       self.name = name
+      self.use_batchsize_for_training = use_batchsize_for_training
 
-  def __call__(self, x, train=True):
+  def __call__(self, x):
     return tf.contrib.layers.batch_norm(x,
                       decay=self.momentum, 
                       updates_collections=None,
                       epsilon=self.epsilon,
                       scale=True,
-                      is_training=train,
+                      is_training=self.use_batchsize_for_training,
                       scope=self.name)
 
 def conv_cond_concat(x, y):

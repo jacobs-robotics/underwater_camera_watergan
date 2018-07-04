@@ -17,6 +17,9 @@ from ops import *
 from utils import *
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import cv2
+
+from fill_depth import *
 
 
 class WGAN(object):
@@ -26,7 +29,7 @@ class WGAN(object):
                  y_dim=None, z_dim=100, gf_dim=64, df_dim=64, gfc_dim=1024, dfc_dim=1024, c_dim=3, max_depth=3.0,
                  save_epoch=100,
                  water_dataset_name='default', input_fname_pattern='*.png', checkpoint_dir=None, results_dir=None,
-                 sample_dir=None):
+                 sample_dir=None, use_batchsize_for_prediction=True):
         """
 
         Args:
@@ -67,21 +70,23 @@ class WGAN(object):
         self.sw = 640
         self.sh = 480
 
+        self.use_batchsize_for_prediction=use_batchsize_for_prediction
+
         # batch normalization : deals with poor initialization helps gradient flow
         # DexROV: using batch size = 1 for prediction (as opposed to batch size = 64 for training)
-        self.d_bn1 = batch_norm(name='d_bn1', use_batchsize_for_training=False)
-        self.d_bn2 = batch_norm(name='d_bn2', use_batchsize_for_training=False)
+        self.d_bn1 = batch_norm(name='d_bn1', use_batchsize_for_prediction=self.use_batchsize_for_prediction)
+        self.d_bn2 = batch_norm(name='d_bn2', use_batchsize_for_prediction=self.use_batchsize_for_prediction)
 
         if not self.y_dim:
-            self.d_bn3 = batch_norm(name='d_bn3', use_batchsize_for_training=False)
+            self.d_bn3 = batch_norm(name='d_bn3', use_batchsize_for_prediction=self.use_batchsize_for_prediction)
 
-        self.g_bn0 = batch_norm(name='g_bn0', use_batchsize_for_training=False)
-        self.g_bn1 = batch_norm(name='g_bn1', use_batchsize_for_training=False)
-        self.g_bn2 = batch_norm(name='g_bn2', use_batchsize_for_training=False)
+        self.g_bn0 = batch_norm(name='g_bn0', use_batchsize_for_prediction=self.use_batchsize_for_prediction)
+        self.g_bn1 = batch_norm(name='g_bn1', use_batchsize_for_prediction=self.use_batchsize_for_prediction)
+        self.g_bn2 = batch_norm(name='g_bn2', use_batchsize_for_prediction=self.use_batchsize_for_prediction)
 
         if not self.y_dim:
-            self.g_bn3 = batch_norm(name='g_bn3', use_batchsize_for_training=False)
-            self.g_bn4 = batch_norm(name='g_bn4', use_batchsize_for_training=False)
+            self.g_bn3 = batch_norm(name='g_bn3', use_batchsize_for_prediction=self.use_batchsize_for_prediction)
+            self.g_bn4 = batch_norm(name='g_bn4', use_batchsize_for_prediction=self.use_batchsize_for_prediction)
 
         self.water_dataset_name = water_dataset_name
         self.input_fname_pattern = input_fname_pattern
@@ -225,25 +230,36 @@ class WGAN(object):
         print(self.sess.run('wc_generator/g_vig/g_c3:0'))
 
     # predict for single image
-    def predict(self, input_image, input_depth):
+    def predict(self, rgb_image, depth_image_raw):
 
         for epoch in xrange(self.config.epoch):
             water_data = sorted(glob(os.path.join(self.config.water_dataset, self.input_fname_pattern)))
-            #air_data = sorted(glob(os.path.join(self.config.air_dataset, self.input_fname_pattern)))
-            #depth_data = sorted(glob(os.path.join(self.config.depth_dataset, self.input_fname_pattern)))
 
-            # TODO replace this
-            scipy.misc.imsave('/home/tobi/Desktop/rgb_image.png', input_image)
-            scipy.misc.imsave('/home/tobi/Desktop/depth_image.png', input_depth)
-            air_data = ['/home/tobi/Desktop/rgb_image.png']
-            depth_data = ['/home/tobi/Desktop/depth_image.png']
-            #air_data = ['/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png']
-            #depth_data = ['/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png']
+            #air_data = '/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png'
+            #depth_data = '/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png'
+            #air_data = '/home/tobi/data/watergan/VOCB3DO/KinectColor/img_0099.png' # same image as in the WaterGAN paper
+            #depth_data = '/home/tobi/data/watergan/VOCB3DO/RegisteredDepthData/img_0099_abs_smooth.png' # same image as in the WaterGAN paper
+            #depth_data_raw = '/home/tobi/data/watergan/VOCB3DO/RegisteredDepthData/img_0099_abs.png' # same image as in the WaterGAN paper
 
-            for idx in [0]:
+            rgb_name = '/home/tobi/Desktop/rgb_image.png'
+            depth_name_raw = '/home/tobi/Desktop/depth_image.png'
+            depth_name_smooth = '/home/tobi/Desktop/depth_image_smooth.png'
+            underwater_name = '/home/tobi/Desktop/underwater_image.png'
+
+            scipy.misc.imsave(rgb_name, rgb_image)
+            scipy.misc.imsave(depth_name_raw, depth_image_raw)
+            #cv2.imwrite(depth_name_raw, depth_image_raw)
+
+            # fill/smooth depth, see https://gist.github.com/bwaldvogel/6892721
+            # and used in "A Category-Level 3-D Object Dataset: Putting the Kinect to Work", A. Janoch et al.
+            depth_image_smooth = fill_depth_colorization(rgb_image, depth_image_raw)
+            scipy.misc.imsave(depth_name_smooth, depth_image_smooth)
+
+            for idx in xrange(self.batch_size):
                 sample_water_batch_files = water_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
-                sample_air_batch_files = air_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
-                sample_depth_batch_files = depth_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
+                # use the same images self.batch_size times because the pipeline has to use the same batch size as in training
+                sample_air_batch_files = [rgb_name] * self.batch_size
+                sample_depth_batch_files = [depth_name_smooth] * self.batch_size
                 if self.is_crop:
                     sample_air_batch = [self.read_img_sample(sample_air_batch_file) for sample_air_batch_file in
                                         sample_air_batch_files]
@@ -263,7 +279,6 @@ class WGAN(object):
                     sample_depth_small_batch = [self.read_depth_small(sample_depth_batch_file) for
                                                 sample_depth_batch_file in sample_depth_batch_files]
                 sample_air_images = np.array(sample_air_batch).astype(np.float32)
-                #print('number of testing air images: ' + str(len(sample_air_images)))
                 sample_depth_small_images = np.expand_dims(sample_depth_small_batch, axis=3)
                 sample_depth_images = np.expand_dims(sample_depth_batch, axis=3)
                 sample_z = np.random.uniform(-1, 1, [self.config.batch_size, self.z_dim]).astype(np.float32)
@@ -274,15 +289,16 @@ class WGAN(object):
                                                    self.sample_depth_inputs: sample_depth_images,
                                                    self.depth_small_inputs: sample_depth_small_images, self.R2: self.r2,
                                                    self.R4: self.r4, self.R6: self.r6})
-                #print('samples: ')
-                #print(samples)
 
                 sample_ims = np.asarray(samples)
                 # remove only first dimension to prevent from errors with batch size = 1
                 sample_ims = np.squeeze(sample_ims, axis=0)
                 sample_fake_images = sample_ims[:, 0:self.sh, 0:self.sw, 0:3]
                 sample_fake_images_small = np.empty([0, self.sh, self.sw, 3])
-                for img_idx in range(0, self.batch_size):
+
+                # discard all but the first generated image
+                # (others were only created to leave the pipeline intact with the original batch size)
+                for img_idx in range(1):
                     out_file = "fake_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
                     out_name = os.path.join(self.config.water_dataset, self.results_dir, out_file)
                     sample_im = sample_ims[img_idx, 0:self.sh, 0:self.sw, 0:3]
@@ -290,6 +306,7 @@ class WGAN(object):
 
                     try:
                         scipy.misc.imsave(out_name, sample_im)
+                        scipy.misc.imsave(underwater_name, sample_im)
                     except OSError:
                         print(out_name)
                         print("ERROR!")
@@ -304,22 +321,18 @@ class WGAN(object):
                         print(out_name)
                         print("ERROR!")
                         pass
-                    out_file3 = "depth_%0d_%02d_%02d.mat" % (epoch, img_idx, idx)
+                    out_file3 = "depth_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
                     out_name3 = os.path.join(self.config.water_dataset, self.results_dir, out_file3)
-                    sample_im3 = sample_depth_images[img_idx, 0:self.sh, 0:self.sw, 0]
-                    sample_im3 = np.squeeze(sample_im3)
                     try:
-                        sio.savemat(out_name3, {'depth': sample_im3})
+                        scipy.misc.imsave(out_name3, depth_image_smooth)
                     except OSError:
                         print(out_name)
                         print("ERROR!")
                         pass
-                    out_file4 = "depth_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
+                    out_file4 = "depth_raw_%0d_%02d_%02d.png" % (epoch, img_idx, idx)
                     out_name4 = os.path.join(self.config.water_dataset, self.results_dir, out_file4)
-                    sample_im4 = sample_depth_images[img_idx, 0:self.sh, 0:self.sw, 0:3]
-                    sample_im4 = np.squeeze(sample_im4)
                     try:
-                        scipy.misc.imsave(out_name4, sample_im4)
+                        scipy.misc.imsave(out_name4, depth_image_raw)
                     except OSError:
                         print(out_name)
                         print("ERROR!")

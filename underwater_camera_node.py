@@ -26,7 +26,7 @@ def init():
     flags.DEFINE_float("learning_rate", 0.0002, "Learning rate of for adam [0.0002]")
     flags.DEFINE_float("beta1", 0.5, "Momentum term of adam [0.5]")
     flags.DEFINE_float("train_size", np.inf, "The size of train images [np.inf]")
-    flags.DEFINE_integer("batch_size", 1, "The size of batch images [64]")
+    flags.DEFINE_integer("batch_size", 64, "The size of batch images [64]")
     flags.DEFINE_integer("input_height", 480, "The size of image to use (will be center cropped). [108]")
     flags.DEFINE_integer("input_width", 640,
                          "The size of image to use (will be center cropped). If None, same value as input_height [None]")
@@ -47,6 +47,7 @@ def init():
     flags.DEFINE_boolean("visualize", False, "True for visualizing, False for nothing [False]")
     flags.DEFINE_integer("save_epoch", 10,
                          "The size of the output images to produce. If None, same value as output_height [None]")
+    flags.DEFINE_boolean("use_batchsize_for_prediction", True, "Use batch size for prediction (True) or one sample only (False) [True]")
     flags = flags.FLAGS
 
     if flags.input_width is None:
@@ -78,13 +79,13 @@ def camera_callback(rgb_image, depth_image):
             data = ros_numpy.numpify(depth_image)
             where_are_NaNs = np.isnan(data)
             data[where_are_NaNs] = 0
-            cv2.normalize(data, data, 0, 255, cv2.NORM_MINMAX)
+            #cv2.normalize(data, data, 0, 255, cv2.NORM_MINMAX)
             cv_depth_image = data
 
         except CvBridgeError as e:
             print(e)
         cv_underwater_image = wgan.predict(cv_rgb_image, cv_depth_image)
-        cv2.normalize(cv_underwater_image, cv_underwater_image, 0, 255, cv2.NORM_MINMAX)
+        #cv2.normalize(cv_underwater_image, cv_underwater_image, 0, 255, cv2.NORM_MINMAX)
         cv_underwater_image = np.array(cv_underwater_image).astype(np.uint8)
         underwater_image = ros_numpy.msgify(Image, cv_underwater_image, "rgb8")
         underwater_image_pub.publish(underwater_image)
@@ -116,11 +117,16 @@ def main(_):
             is_crop=flags.is_crop,
             checkpoint_dir=flags.checkpoint_dir,
             results_dir=flags.results_dir,
-            sample_dir=flags.sample_dir)
+            sample_dir=flags.sample_dir,
+            use_batchsize_for_prediction=flags.use_batchsize_for_prediction
+        )
 
         print('Running Underwater Camera ROS Node')
         wgan.load_model(flags)
         is_initialized = True
+
+        # TODO test
+        #wgan.predict(None, None)
 
         # Below is codes for visualization
         # OPTION = 1

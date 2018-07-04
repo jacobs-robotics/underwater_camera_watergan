@@ -3,7 +3,7 @@ import numpy as np
 import rospy
 import message_filters
 import tensorflow as tf
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CameraInfo
 import ros_numpy
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
@@ -15,11 +15,13 @@ wgan = None
 flags = None
 is_initialized = False
 underwater_image_pub = None
+max_depth = 5.0 # maximum depth in meters to regard with underwater camera (clamp all computations to this depth if exceeded)
 
 def init():
 
     global flags
     global underwater_image_pub
+    global underwater_camera_info_pub
 
     flags = tf.app.flags
     flags.DEFINE_integer("epoch", 1, "Epoch to train [25]")
@@ -64,21 +66,28 @@ def init():
     rospy.init_node('underwater_camera_node', anonymous=True)
     image_sub = message_filters.Subscriber('/depth_camera/image_raw', Image)
     depth_sub = message_filters.Subscriber('/depth_camera/depth/image_raw', Image)
+    camera_info_sub = message_filters.Subscriber('/depth_camera/camera_info', CameraInfo)
     underwater_image_pub = rospy.Publisher('/underwater_camera_watergan/image_raw', Image, queue_size=10)
+    underwater_camera_info_pub = rospy.Publisher('/underwater_camera_watergan/camera_info', CameraInfo, queue_size=10)
 
-    ts = message_filters.TimeSynchronizer([image_sub, depth_sub], 10)
+    ts = message_filters.TimeSynchronizer([image_sub, depth_sub, camera_info_sub], 10)
     ts.registerCallback(camera_callback)
 
-def camera_callback(rgb_image, depth_image):
+def camera_callback(rgb_image, depth_image, camera_info):
     global wgan
     global is_initialized
     global underwater_image_pub
+    global underwater_camera_info_pub
+    global max_depth
+
     if is_initialized:
         try:
             cv_rgb_image = CvBridge().imgmsg_to_cv2(rgb_image, "rgb8")
             data = ros_numpy.numpify(depth_image)
+            # fill NaNs with maximum depth value
+            # because simulated Kinect reports NaN where depth is higher than maximum hardware depth
             where_are_NaNs = np.isnan(data)
-            data[where_are_NaNs] = 0
+            data[where_are_NaNs] = max_depth
             #cv2.normalize(data, data, 0, 255, cv2.NORM_MINMAX)
             cv_depth_image = data
 
@@ -86,9 +95,11 @@ def camera_callback(rgb_image, depth_image):
             print(e)
         cv_underwater_image = wgan.predict(cv_rgb_image, cv_depth_image)
         #cv2.normalize(cv_underwater_image, cv_underwater_image, 0, 255, cv2.NORM_MINMAX)
-        cv_underwater_image = np.array(cv_underwater_image).astype(np.uint8)
+        #cv_underwater_image = np.array(cv_underwater_image).astype(np.uint8)
         underwater_image = ros_numpy.msgify(Image, cv_underwater_image, "rgb8")
+        underwater_image.header = rgb_image.header
         underwater_image_pub.publish(underwater_image)
+        underwater_camera_info_pub.publish(camera_info)
 
 
 def main(_):
@@ -125,12 +136,6 @@ def main(_):
         wgan.load_model(flags)
         is_initialized = True
 
-        # TODO test
-        #wgan.predict(None, None)
-
-        # Below is codes for visualization
-        # OPTION = 1
-        #visualize(sess, wgan, FLAGS, OPTION)
         rospy.spin()
 
 

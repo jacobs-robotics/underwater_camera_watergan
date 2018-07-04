@@ -230,41 +230,42 @@ class WGAN(object):
         print(self.sess.run('wc_generator/g_vig/g_c3:0'))
 
     # predict for single image
-    def predict(self, rgb_image, depth_image_raw):
+    def predict(self, rgb_image, depth_image_raw, smooth_depth=False):
 
         for epoch in xrange(self.config.epoch):
-            water_data = sorted(glob(os.path.join(self.config.water_dataset, self.input_fname_pattern)))
 
+            # testing data
             #air_data = '/home/tobi/data/watergan/uw-rgbd-images/01-00000-color.png'
             #depth_data = '/home/tobi/data/watergan/uw-rgbd-depth/01-00000-depth.png'
             #air_data = '/home/tobi/data/watergan/VOCB3DO/KinectColor/img_0099.png' # same image as in the WaterGAN paper
             #depth_data = '/home/tobi/data/watergan/VOCB3DO/RegisteredDepthData/img_0099_abs_smooth.png' # same image as in the WaterGAN paper
             #depth_data_raw = '/home/tobi/data/watergan/VOCB3DO/RegisteredDepthData/img_0099_abs.png' # same image as in the WaterGAN paper
 
-            rgb_name = '/home/tobi/Desktop/rgb_image.png'
-            depth_name_raw = '/home/tobi/Desktop/depth_image.png'
-            depth_name_smooth = '/home/tobi/Desktop/depth_image_smooth.png'
-            underwater_name = '/home/tobi/Desktop/underwater_image.png'
+            rgb_name = 'watergan_rgb_image.png'
+            depth_name_raw = 'watergan_depth_image.png'
+            depth_name_smooth = 'watergan_depth_image_smooth.png'
+            underwater_name = 'watergan_underwater_image.png'
 
             scipy.misc.imsave(rgb_name, rgb_image)
             scipy.misc.imsave(depth_name_raw, depth_image_raw)
-            #cv2.imwrite(depth_name_raw, depth_image_raw)
 
-            # fill/smooth depth, see https://gist.github.com/bwaldvogel/6892721
+            # fill/smooth depth, see https://gist.github.com/bwaldvogel/6892721, original: www.cs.huji.ac.il/~yweiss/Colorization/
             # and used in "A Category-Level 3-D Object Dataset: Putting the Kinect to Work", A. Janoch et al.
-            depth_image_smooth = fill_depth_colorization(rgb_image, depth_image_raw)
+            # this has no effect in the current setup where NaN depth is clamped to maximum depth as permitted by hardware
+            if smooth_depth:
+                print(' [*] Smoothing depth image, this takes a while... ')
+                depth_image_smooth = fill_depth_colorization(rgb_image, depth_image_raw)
+            else:
+                depth_image_smooth = depth_image_raw
             scipy.misc.imsave(depth_name_smooth, depth_image_smooth)
 
             for idx in xrange(self.batch_size):
-                sample_water_batch_files = water_data[idx * self.config.batch_size:(idx + 1) * self.config.batch_size]
                 # use the same images self.batch_size times because the pipeline has to use the same batch size as in training
                 sample_air_batch_files = [rgb_name] * self.batch_size
                 sample_depth_batch_files = [depth_name_smooth] * self.batch_size
                 if self.is_crop:
                     sample_air_batch = [self.read_img_sample(sample_air_batch_file) for sample_air_batch_file in
                                         sample_air_batch_files]
-                    sample_water_batch = [self.read_img_sample(sample_water_batch_file) for sample_water_batch_file in
-                                          sample_water_batch_files]
                     sample_depth_small_batch = [self.read_depth_small(sample_depth_batch_file) for
                                                 sample_depth_batch_file in sample_depth_batch_files]
                     sample_depth_batch = [self.read_depth_sample(sample_depth_batch_file) for sample_depth_batch_file in
@@ -272,8 +273,6 @@ class WGAN(object):
                 else:
                     sample_air_batch = [scipy.misc.imread(sample_air_batch_file) for sample_air_batch_file in
                                         sample_air_batch_files]
-                    sample_water_batch = [scipy.misc.imread(sample_water_batch_file) for sample_water_batch_file in
-                                          sample_water_batch_files]
                     sample_depth_batch = [self.read_depth_sample(sample_depth_batch_file) for sample_depth_batch_file in
                                           sample_depth_batch_files]
                     sample_depth_small_batch = [self.read_depth_small(sample_depth_batch_file) for
@@ -343,7 +342,9 @@ class WGAN(object):
                     sample_fake = np.expand_dims(sample_fake, axis=0)
                     sample_fake_images_small = np.append(sample_fake_images_small, sample_fake, axis=0)
 
-                return sample_im
+                #return sample_im
+                # read image again to avoid conversion issues
+                return scipy.misc.imread(underwater_name)
 
     def discriminator(self, image, depth=None, y=None, reuse=False):
         with tf.variable_scope("discriminator") as scope:

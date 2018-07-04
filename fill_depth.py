@@ -94,11 +94,11 @@ def fill_depth_colorization(imgRgb, imgDepth, alpha=1.0):
         curVal = grayImg[i, j]
         gvals[nWin] = curVal
 
-        # TODO
+        # clamp on some small non-zero value where zero depth is reported, otherwise the averaging fails in big zero regions
         if np.sum(gvals[:nWin]) <= 0:
-            gvals[:nWin] = [2.0] * len(gvals[:nWin])
+            gvals[:nWin] = [0.01] * len(gvals[:nWin])
             nan_counter += len(gvals[:nWin])
-        assert np.sum(gvals[:nWin]) > 0, "gvals: %s" % (repr(gvals[:nWin]))
+        #assert np.sum(gvals[:nWin]) > 0, "gvals: %s" % (repr(gvals[:nWin]))
 
         c_var = np.var(gvals[:nWin])
         # c_var = np.mean((gvals(1:nWin+1)-mean(gvals(1:nWin+1))).^2)
@@ -141,7 +141,7 @@ def fill_depth_colorization(imgRgb, imgDepth, alpha=1.0):
 
     G = dia_matrix((vals, 0), shape=(numPix, numPix))
 
-    print("found" + str(nan_counter) + " NaNs")
+    print("found " + str(nan_counter) + " NaNs")
     print("solving...")
     start = time.time()
     new_vals = linalg.spsolve((A + G), vals * imgDepth.flatten())

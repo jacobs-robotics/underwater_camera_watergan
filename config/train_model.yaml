@@ -1,0 +1,4 @@
+model_directory: "/home/tobi/data/watergan/dexrov_underwater/model"
+water_dataset: "/home/tobi/data/watergan/dexrov_underwater/water"
+rgb_dataset: "/home/tobi/data/watergan/dexrov_underwater/rgb"
+depth_dataset: "/home/tobi/data/watergan/dexrov_underwater/depth"

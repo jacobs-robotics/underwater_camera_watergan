@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package>
+  <name>underwater_camera_watergan</name>
+  <version>0.1.0</version>
+  <description>ROS wrapper and extension of WaterGAN, fork from https://github.com/kskin/WaterGAN</description>
+
+  <maintainer email="t.fromm@jacobs-university.de">Tobias Doernbach</maintainer>
+
+  <license>MIT</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>rospy</build_depend>
+  <build_depend>std_srvs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>ros_numpy</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>message_filters</build_depend>
+  
+  <run_depend>rospy</run_depend>
+  <run_depend>std_srvs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>ros_numpy</run_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>message_filters</run_depend>
+  
+</package>

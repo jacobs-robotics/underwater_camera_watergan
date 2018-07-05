@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="config_filename" default="$(find underwater_camera_watergan)/config/train_model.yaml"/>
+
+    <node name="train_model" type="train_model.py" pkg="underwater_camera_watergan" output="screen">
+        <param name="config_filename" type="str" value="$(arg config_filename)" />
+    </node>
+    
+</launch>

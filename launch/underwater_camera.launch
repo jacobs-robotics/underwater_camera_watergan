@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+
+    <arg name="config_filename" default="$(find underwater_camera_watergan)/config/underwater_camera.yaml"/>
+
+    <node name="underwater_camera" type="underwater_camera_node.py" pkg="underwater_camera_watergan" output="screen" respawn="true">
+        <param name="config_filename" type="str" value="$(arg config_filename)" />
+    </node>
+    
+</launch>

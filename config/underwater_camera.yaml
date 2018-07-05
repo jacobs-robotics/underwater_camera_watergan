@@ -1,1 +1,6 @@
-model_directory: "/home/tobi/data/watergan/dexrov_underwater/model"
+model_directory: '/home/tobi/data/watergan/dexrov_underwater/model'
+depth_camera_rgb_topic: '/depth_camera/image_raw'
+depth_camera_depth_topic: '/depth_camera/depth/image_raw'
+depth_camera_info_topic: '/depth_camera/camera_info'
+underwater_camera_image_topic: '/underwater_camera_watergan/image_raw'
+underwater_camera_info_topic: '/underwater_camera_watergan/camera_info'

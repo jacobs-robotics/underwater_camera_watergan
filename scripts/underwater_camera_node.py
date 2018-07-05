@@ -26,17 +26,18 @@ def init():
     global underwater_image_pub
     global underwater_camera_info_pub
 
-    # initialize image subscribers and publisher
     rospy.init_node('underwater_camera_node', anonymous=True)
-    image_sub = message_filters.Subscriber('/depth_camera/image_raw', Image)
-    depth_sub = message_filters.Subscriber('/depth_camera/depth/image_raw', Image)
-    camera_info_sub = message_filters.Subscriber('/depth_camera/camera_info', CameraInfo)
-    underwater_image_pub = rospy.Publisher('/underwater_camera_watergan/image_raw', Image, queue_size=10)
-    underwater_camera_info_pub = rospy.Publisher('/underwater_camera_watergan/camera_info', CameraInfo, queue_size=10)
-    
+
     # load configuration
     config_filename = rospy.get_param('~config_filename')
     config = load(file(config_filename, 'r'), Loader=Loader)
+
+    # initialize image subscribers and publisher
+    image_sub = message_filters.Subscriber(config['depth_camera_rgb_topic'], Image)
+    depth_sub = message_filters.Subscriber(config['depth_camera_depth_topic'], Image)
+    camera_info_sub = message_filters.Subscriber(config['depth_camera_info_topic'], CameraInfo)
+    underwater_image_pub = rospy.Publisher(config['underwater_camera_image_topic'], Image, queue_size=10)
+    underwater_camera_info_pub = rospy.Publisher(config['underwater_camera_info_topic'], CameraInfo, queue_size=10)
 
     ts = message_filters.TimeSynchronizer([image_sub, depth_sub, camera_info_sub], 10)
     ts.registerCallback(camera_callback)

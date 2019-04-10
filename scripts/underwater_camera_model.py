@@ -530,6 +530,8 @@ class WGAN(object):
         ds = depthtmp.shape
         if self.is_crop:
             depth = scipy.misc.imresize(depthtmp, (self.output_height, self.output_width), mode='F')
+        else:
+            depth = depthtmp
         depth = np.array(depth).astype(np.float32)
         depth = np.multiply(self.max_depth, np.divide(depth, depth.max()))
 
@@ -553,6 +555,8 @@ class WGAN(object):
 
         if self.is_crop:
             depth = scipy.misc.imresize(depthtmp, (self.output_height, self.output_width), mode='F')
+        else:
+            depth = depthtmp
         depth = np.array(depth).astype(np.float32)
         depth = np.multiply(self.max_depth, np.divide(depth, depth.max()))
 
